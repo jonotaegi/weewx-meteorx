@@ -1,4 +1,4 @@
-## weewx-meteoRX
+## weewx-meteorx
 
 ### About this Repository
 
@@ -7,22 +7,22 @@ This repository is a fork of [https://github.com/matthewwall/weewx-meteostick](h
 
 ### Installation
 
-0) Install weewx, select Simulator as the weather station
+0) Install weeWX, select Simulator as the weather station
 
 http://weewx.com/docs/usersguide.htm
 
 1) Download the driver
 
-wget -O weewx-meteoRX.zip https://github.com/kobuki/weewx-meteoRX/archive/master.zip
+wget -O weewx-meteorx.zip https://github.com/jonotaegi/weewx-meteorx/archive/master.zip
 
 2) Install the driver
 
-sudo wee_extension --install weewx-meteoRX.zip
+sudo wee_extension --install weewx-meteorx.zip
 
 3) Configure the driver
 
 sudo wee_config --reconfigure
 
-4) Start weewx
+4) Start weeWX
 
 sudo /etc/init.d/weewx start

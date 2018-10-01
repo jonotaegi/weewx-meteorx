@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Meteostick driver for weewx
+# MeteoRX driver for weeWX
 #
 # Copyright 2016 Matthew Wall, Luc Heijst
 #
@@ -17,10 +17,10 @@
 #
 # See http://www.gnu.org/licenses/
 
-"""Meteostick is a USB device that receives radio transmissions from Davis
+"""MeteoRX is a USB device that receives radio transmissions from Davis
 weather stations.
 
-The meteostick has a preset radio frequency (RF) treshold value which is twice
+The meteorx has a preset radio frequency (RF) treshold value which is twice
 the RF sensity value in dB.  Valid values for RF sensity range from 0 to 125.
 Both positive and negative parameter values will be treated as the
 same actual (negative) dB values.
@@ -29,7 +29,7 @@ The default RF sensitivity value is 90 (-90 dB).  Values between 95 and 125
 tend to give too much noise and false readings (the higher value the more
 noise).  Values lower than 50 likely result in no readings at all.
 
-The meteostick outputs data in one of 3 formats: human-readable, machine, and
+The meteorx outputs data in one of 3 formats: human-readable, machine, and
 raw.  The machine format is, in fact, human-readable as well.  This driver
 supports the machine and raw formats.  The raw format provides more data and
 seems to result in higher quality readings, so it is the default.
@@ -52,7 +52,7 @@ import weewx.wxformulas
 import weewx.units
 from weewx.crc16 import crc16
 
-DRIVER_NAME = 'Meteostick'
+DRIVER_NAME = 'MeteoRX'
 DRIVER_VERSION = '2017091301.test'
 
 DEBUG_SERIAL = 0
@@ -64,19 +64,19 @@ MPH_TO_MPS = 1609.34 / 3600.0  # meter/mile * hour/second
 
 
 def loader(config_dict, engine):
-    return MeteostickDriver(engine, config_dict)
+    return MeteoRXDriver(engine, config_dict)
 
 
 def confeditor_loader():
-    return MeteostickConfEditor()
+    return MeteoRXConfEditor()
 
 
 def configurator_loader(config_dict):
-    return MeteostickConfigurator()
+    return MeteoRXConfigurator()
 
 
 def logmsg(level, msg):
-    syslog.syslog(level, 'meteostick: %s' % msg)
+    syslog.syslog(level, 'meteorx: %s' % msg)
 
 
 def logdbg(msg):
@@ -128,12 +128,12 @@ LW_MAP = {RAW: (857.0, 864.0, 895.0, 911.0, 940.0, 952.0, 991.0, 1013.0),
 RAW_CHANNEL = 0  # unused channel for the receiver stats in raw format
 
 
-class MeteostickDriver(weewx.drivers.AbstractDevice, weewx.engine.StdService):
+class MeteoRXDriver(weewx.drivers.AbstractDevice, weewx.engine.StdService):
     NUM_CHAN = 10  # 8 channels, one fake channel (9), one unused channel (0)
     DEFAULT_RAIN_BUCKET_TYPE = 1
     DEFAULT_SENSOR_MAP = {
         'pressure': 'pressure',
-        'inTemp': 'temp_in',  # temperature inside meteostick
+        'inTemp': 'temp_in',  # temperature inside meteorx
         'windSpeed': 'wind_speed',
         'windDir': 'wind_dir',
         'outTemp': 'temperature',
@@ -201,7 +201,7 @@ class MeteostickDriver(weewx.drivers.AbstractDevice, weewx.engine.StdService):
         self.first_rf_stats = True
         self._init_rf_stats()
 
-        self.station = Meteostick(**stn_dict)
+        self.station = MeteoRX(**stn_dict)
         self.station.open()
         self.station.reset()
         self.station.configure()
@@ -218,7 +218,7 @@ class MeteostickDriver(weewx.drivers.AbstractDevice, weewx.engine.StdService):
 
     @property
     def hardware_name(self):
-        return 'Meteostick'
+        return 'MeteoRX'
 
     def genLoopPackets(self):
         while True:
@@ -360,7 +360,7 @@ class MeteostickDriver(weewx.drivers.AbstractDevice, weewx.engine.StdService):
         self._init_rf_stats()  # flush rf statistics
 
 
-class Meteostick(object):
+class MeteoRX(object):
     DEFAULT_PORT = '/dev/ttyUSB0'
     DEFAULT_STATION_TYPE = 'vp2'
     DEFAULT_BAUDRATE = 115200
@@ -421,7 +421,7 @@ class Meteostick(object):
         loginf('using temp_hum_1_channel %s' % channels['temp_hum_1'])
         loginf('using temp_hum_2_channel %s' % channels['temp_hum_2'])
 
-        self.transmitters = Meteostick.ch_to_xmit(
+        self.transmitters = MeteoRX.ch_to_xmit(
             channels['iss'], channels['anemometer'], channels['leaf_soil'],
             channels['temp_hum_1'], channels['temp_hum_2'])
         loginf('using transmitters %02x' % self.transmitters)
@@ -486,7 +486,7 @@ class Meteostick(object):
 
     def reset(self, max_wait=30):
         """Reset the device, leaving it in a state that we can talk to it."""
-        loginf("establish communication with the meteostick")
+        loginf("establish communication with the meteorx")
 
         # flush any previous data in the input buffer
         self.serial_port.flushInput()
@@ -508,7 +508,7 @@ class Meteostick(object):
                 elif c in string.printable:
                     response += c
             if time.time() - start_ts > max_wait:
-                raise weewx.WakeupError("No 'ready' response from meteostick after %s seconds" % max_wait)
+                raise weewx.WakeupError("No 'ready' response from meteorx after %s seconds" % max_wait)
         loginf("reset: %s" % response.split('\n')[0])
         dbg_serial(2, "full response to reset: %s" % response)
         # Discard any serial input from the device
@@ -518,7 +518,7 @@ class Meteostick(object):
 
     def configure(self):
         """Configure the device to send data continuously."""
-        loginf("configure meteostick to logger mode")
+        loginf("configure meteorx to logger mode")
 
         # Show default settings (they might change with a new firmware version)
         self.send_command('?')
@@ -590,7 +590,7 @@ class Meteostick(object):
 
     def parse_raw(self, raw, iss_ch, wind_ch, ls_ch, th1_ch, th2_ch, rain_per_tip, station_type):
         data = dict()
-        parts = Meteostick.get_parts(raw)
+        parts = MeteoRX.get_parts(raw)
         n = len(parts)
 
         if parts[0] == 'B':
@@ -628,9 +628,9 @@ class Meteostick(object):
             if raw_msg[8] != '\xff' and raw_msg[9] != '\xff':
                 # repeater present, swap bytes for crc processing
                 raw_msg[6:8], raw_msg[8:10] = raw_msg[8:10], raw_msg[6:8]
-                Meteostick._check_crc(raw_msg)
+                MeteoRX._check_crc(raw_msg)
             else:
-                Meteostick._check_crc(raw_msg[:8])
+                MeteoRX._check_crc(raw_msg[:8])
 
             for i in xrange(0, 10):
                 raw_msg[i] = parts[i + 2]
@@ -810,7 +810,7 @@ class Meteostick(object):
                         else:
                             # analog sensor (thermistor)
                             temp_raw /= 4  # 10-bits temp value
-                            temp_c = Meteostick.calculate_thermistor_temp(temp_raw)
+                            temp_c = MeteoRX.calculate_thermistor_temp(temp_raw)
                             dbg_parse(2, "thermistor temp_raw=0x%03x temp_c=%s"
                                       % (temp_raw, temp_c))
                         if data['channel'] == th1_ch:
@@ -893,7 +893,7 @@ class Meteostick(object):
                         # I 104 F2 29 FF FF C0 C0 F1 EC  -52 2687408 124 (no sensor)
                         if pkt[3] != 0xFF:
                             # soil temperature
-                            temp_c = Meteostick.calculate_thermistor_temp(temp_raw)
+                            temp_c = MeteoRX.calculate_thermistor_temp(temp_raw)
                             data['soil_temp_%s' % sensor_num] = temp_c
                             dbg_parse(2, "soil_temp_%s=%s 0x%03x" %
                                       (sensor_num, temp_c, temp_raw))
@@ -901,7 +901,7 @@ class Meteostick(object):
                             # soil moisture potential
                             # Lookup soil moisture potential in SM_MAP
                             norm_fact = 0.009  # Normalize potential_raw
-                            soil_moisture = Meteostick.lookup_potential(
+                            soil_moisture = MeteoRX.lookup_potential(
                                 "soil_moisture", norm_fact,
                                 potential_raw, temp_c, SM_MAP)
                             data['soil_moisture_%s' % sensor_num] = soil_moisture
@@ -914,7 +914,7 @@ class Meteostick(object):
                         # I 101 F2 2A 0 FF 40 C0 4F 5  -52 2687404 43 (no sensor)
                         if pkt[3] != 0xFF:
                             # leaf temperature
-                            temp_c = Meteostick.calculate_thermistor_temp(temp_raw)
+                            temp_c = MeteoRX.calculate_thermistor_temp(temp_raw)
                             data['leaf_temp_%s' % sensor_num] = temp_c
                             dbg_parse(2, "leaf_temp_%s=%s 0x%03x" %
                                       (sensor_num, temp_c, temp_raw))
@@ -922,7 +922,7 @@ class Meteostick(object):
                             # leaf wetness potential
                             # Lookup leaf wetness potential in LW_MAP
                             norm_fact = 0.0  # Do not normalize potential_raw
-                            leaf_wetness = Meteostick.lookup_potential(
+                            leaf_wetness = MeteoRX.lookup_potential(
                                 "leaf_wetness", norm_fact,
                                 potential_raw, temp_c, LW_MAP)
                             data['leaf_wetness_%s' % sensor_num] = leaf_wetness
@@ -1037,14 +1037,14 @@ class Meteostick(object):
         return potential
 
 
-class MeteostickConfEditor(weewx.drivers.AbstractConfEditor):
+class MeteoRXConfEditor(weewx.drivers.AbstractConfEditor):
     @property
     def default_stanza(self):
         return """
-[Meteostick]
-    # This section is for the Meteostick USB receiver.
+[MeteoRX]
+    # This section is for the MeteoRX USB receiver.
 
-    # The serial port to which the meteostick is attached, e.g., /dev/ttyS0
+    # The serial port to which the meteorx is attached, e.g., /dev/ttyS0
     port = /dev/ttyUSB0
 
     # Radio frequency to use between USB transceiver and console: US, EU or AU
@@ -1066,22 +1066,22 @@ class MeteostickConfEditor(weewx.drivers.AbstractConfEditor):
     rain_bucket_type = 1
 
     # The driver to use
-    driver = user.meteostick
+    driver = user.meteorx
 """
 
     def prompt_for_settings(self):
         settings = dict()
-        print "Specify the serial port on which the meteostick is connected,"
+        print "Specify the serial port on which the meteorx is connected,"
         print "for example /dev/ttyUSB0 or /dev/ttyS0"
-        settings['port'] = self._prompt('port', Meteostick.DEFAULT_PORT)
-        print "Specify the frequency between the station and the meteostick,"
+        settings['port'] = self._prompt('port', MeteoRX.DEFAULT_PORT)
+        print "Specify the frequency between the station and the meteorx,"
         print "one of US (915 MHz), EU (868.3 MHz), or AU (915 MHz)"
         settings['transceiver_frequency'] = self._prompt('frequency', 'EU', ['US', 'EU', 'AU'])
         print "Specify the type of the station (vp2 or vue)"
-        settings['station_type'] = self._prompt('station_type', Meteostick.DEFAULT_STATION_TYPE, ['vp2', 'vue'])
+        settings['station_type'] = self._prompt('station_type', MeteoRX.DEFAULT_STATION_TYPE, ['vp2', 'vue'])
         print "Specify the type of the rain bucket,"
         print "either 0 (0.01 inches per tip) or 1 (0.2 mm per tip)"
-        settings['rain_bucket_type'] = self._prompt('rain_bucket_type', MeteostickDriver.DEFAULT_RAIN_BUCKET_TYPE)
+        settings['rain_bucket_type'] = self._prompt('rain_bucket_type', MeteoRXDriver.DEFAULT_RAIN_BUCKET_TYPE)
         print "Specify the channel of the ISS (1-8)"
         settings['iss_channel'] = self._prompt('iss_channel', 1)
         print "Specify the channel of the Anemometer Transmitter Kit (0=none; 1-8)"
@@ -1095,22 +1095,22 @@ class MeteostickConfEditor(weewx.drivers.AbstractConfEditor):
         return settings
 
 
-class MeteostickConfigurator(weewx.drivers.AbstractConfigurator):
+class MeteoRXConfigurator(weewx.drivers.AbstractConfigurator):
     def add_options(self, _parser):
-        super(MeteostickConfigurator, self).add_options(_parser)
+        super(MeteoRXConfigurator, self).add_options(_parser)
         _parser.add_option(
             "--info", dest="info", action="store_true",
-            help="display meteostick configuration")
+            help="display meteorx configuration")
         _parser.add_option(
             "--show-options", dest="opts", action="store_true",
-            help="display meteostick command options")
+            help="display meteorx command options")
         _parser.add_option(
             "--set-verbose", dest="verbose", metavar="X", type=int,
             help="set verbose: 0=off, 1=on; default off")
         _parser.add_option(
             "--set-debug", dest="debug", metavar="X", type=int,
             help="set debug: 0=off, 1=on; default off")
-        # bug in meteostick: according to docs, 0=high, 1=low
+        # bug in meteorx: according to docs, 0=high, 1=low
         _parser.add_option(
             "--set-ledmode", dest="led", metavar="X", type=int,
             help="set led mode: 1=high 0=low; default low")
@@ -1131,7 +1131,7 @@ class MeteostickConfigurator(weewx.drivers.AbstractConfigurator):
             help="set channel: 0-255; default 255")
 
     def do_options(self, options, _parser, config_dict, prompt):
-        driver = MeteostickDriver(None, config_dict)
+        driver = MeteoRXDriver(None, config_dict)
         info = driver.station.reset()
         if options.info:
             print info
@@ -1154,10 +1154,10 @@ class MeteostickConfigurator(weewx.drivers.AbstractConfigurator):
             print response
         driver.closePort()
 
-# define a main entry point for basic testing of the station without weewx
-# engine and service overhead.  invoke this as follows from the weewx root dir:
+# define a main entry point for basic testing of the station without weeWX
+# engine and service overhead.  invoke this as follows from the weeWX root dir:
 #
-# PYTHONPATH=bin python bin/user/meteostick.py
+# PYTHONPATH=bin python bin/user/meteorx.py
 
 
 if __name__ == '__main__':
@@ -1165,26 +1165,26 @@ if __name__ == '__main__':
 
     usage = """%prog [options] [--help]"""
 
-    syslog.openlog('meteostick', syslog.LOG_PID | syslog.LOG_CONS)
+    syslog.openlog('meteorx', syslog.LOG_PID | syslog.LOG_CONS)
     syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('--version', dest='version', action='store_true',
                       help='display driver version')
     parser.add_option('--station-type', dest='station_type', metavar='STATION_TYPE',
                       help='station type, either vp2 or vue',
-                      default=Meteostick.DEFAULT_STATION_TYPE)
+                      default=MeteoRX.DEFAULT_STATION_TYPE)
     parser.add_option('--port', dest='port', metavar='PORT',
                       help='serial port to which the station is connected',
-                      default=Meteostick.DEFAULT_PORT)
+                      default=MeteoRX.DEFAULT_PORT)
     parser.add_option('--baud', dest='baud', metavar='BAUDRATE',
                       help='serial port baud rate',
-                      default=Meteostick.DEFAULT_BAUDRATE)
+                      default=MeteoRX.DEFAULT_BAUDRATE)
     parser.add_option('--freq', dest='freq', metavar='FREQUENCY',
                       help='comm frequency, either US (915MHz) or EU (868MHz)',
-                      default=Meteostick.DEFAULT_FREQUENCY)
+                      default=MeteoRX.DEFAULT_FREQUENCY)
     parser.add_option('--rfs', dest='rfs', metavar='RF_SENSITIVITY',
                       help='RF sensitivity in dB',
-                      default=Meteostick.DEFAULT_RF_SENSITIVITY)
+                      default=MeteoRX.DEFAULT_RF_SENSITIVITY)
     parser.add_option('--iss-channel', dest='c_iss', metavar='ISS_CHANNEL',
                       help='channel for ISS', default=1)
     parser.add_option('--anemometer-channel', dest='c_a',
@@ -1200,10 +1200,10 @@ if __name__ == '__main__':
     (opts, args) = parser.parse_args()
 
     if opts.version:
-        print "meteostick driver version %s" % DRIVER_VERSION
+        print "meteorx driver version %s" % DRIVER_VERSION
         exit(0)
 
-    with Meteostick(port=opts.port, baudrate=opts.baud,
+    with MeteoRX(port=opts.port, baudrate=opts.baud,
                     transceiver_frequency=opts.freq,
                     iss_channel=int(opts.c_iss),
                     anemometer_channel=int(opts.c_a),
